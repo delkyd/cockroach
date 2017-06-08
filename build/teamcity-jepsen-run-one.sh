@@ -28,9 +28,11 @@ testcmd="cd jepsen/cockroachdb && set -eo pipefail && \
    --time-limit 180 \
    --test-count 1 \
    --test ${test} ${nemesis} \
-2>&1 | stdbuf -oL tee invoke.log"
+2>&1 | stdbuf -oL tee invoke.log; echo lein finished >> invoke.log"
 
 exitcode=0
+
+SCRIPT_PID=$$
 
 # Although we run tests of 3 minutes each, we use a timeout
 # much larger than that; this is because Jepsen for some tests
@@ -50,9 +52,10 @@ if timeout 15m ssh "${SSH_OPTIONS[@]}" "ubuntu@${controller}" "${testcmd}" \
                if [ $status -gt 128 ]; then
                    progress "Jepsen test was silent for too long, aborting"
                    # timeout: kill ssh to abort the test.
-                   killall ssh
+                   pkill -P $SCRIPT_PID ssh
                    exit $status
-               elif [ $status != 0 ]; then
+               elif [ $status -ne 0 ]; then
+                   progress "Test finished with $i log lines"
                    break
                fi
                secs=$(date +%s);
